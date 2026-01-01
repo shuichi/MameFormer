@@ -1,0 +1,8 @@
+name: mameformer
+output_dir: outputs/${experiment.name}
+tensorboard: true
+mlflow:
+  enabled: true
+  tracking_uri: null
+  experiment_name: null
+  run_name: null

@@ -1,0 +1,6 @@
+d_model: 64
+nhead: 4
+num_layers: 2
+dim_feedforward: 256
+dropout: 0.05
+max_len: 7

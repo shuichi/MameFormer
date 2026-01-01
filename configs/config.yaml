@@ -1,0 +1,17 @@
+defaults:
+  - model: decoder
+  - training: default
+  - experiment: base
+
+seed: 42
+
+data:
+  train_path: data/train.txt
+  val_path: null
+  val_split: 0.1
+
+hydra:
+  run:
+    dir: ${experiment.output_dir}
+  job:
+    chdir: False
