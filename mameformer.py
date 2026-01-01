@@ -1,16 +1,13 @@
-import math  
-import os  
-import random  
-import sys  
-from typing import List, Tuple  
+import argparse
+import math
+import os
+import sys
 
-import argparse  
-import onnx 
-import onnxscript  
-import torch  
-import torch.nn as nn  
-from torch.utils.data import Dataset, DataLoader  
-from torch.utils.tensorboard import SummaryWriter 
+import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader, Dataset, random_split
+from torch.utils.tensorboard import SummaryWriter
+
 
 class DecoderTokenizer:
     """
@@ -31,45 +28,46 @@ class DecoderTokenizer:
     """
 
     def __init__(self, max_len: int = 8):
-        self.max_len = max_len 
-        self.pad_id = 0 
-        self.sep_id = 11 
-        self.mask_id = 12  
-        self.aho_id = 13 
-        self.safe_id = 14 
-        self.digit2id = {str(d): d + 1 for d in range(10)}  
+        self.max_len = max_len
+        self.pad_id = 0
+        self.sep_id = 11
+        self.mask_id = 12
+        self.aho_id = 13
+        self.safe_id = 14
+        self.digit2id = {str(d): d + 1 for d in range(10)}
 
     @property
     def vocab_size(self) -> int:
-        return 15  
+        return 15
 
-    def encode(self, n: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def encode(self, n: str) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None]:
         """
-        整数 n を 1 サンプル分のトークン列に変換する。
+        文字列 n を 1 サンプル分のトークン列に変換する。
 
         Args:
-            n (int): 変換する整数。
+            n (str): 変換する文字列。例: "12A", "14Z", "12345"
 
         Returns:
-            Tuple[Tensor, Tensor, Tensor]:
+            Tuple[Tensor, Tensor, Optional[Tensor]]:
                 input_ids: 数字列 + [SEP] + [MASK] + PAD (shape: (max_len,))
                 attention_mask: 1=有効, 0=PAD (shape: (max_len,))
                 label_id: 正解ラベル [AHO]/[SAFE] のトークン ID (shape: ())
         """
-        s = str(abs(int(n))) 
-        digit_ids = [self.digit2id[ch] for ch in s]  
+        raw = n.strip()
+        label_id: int | None = None
+        if raw and raw[-1] in ("A", "Z"):
+            label_id = self.aho_id if raw[-1] == "A" else self.safe_id
+            raw = raw[:-1]
+        if not raw.isdigit():
+            raise ValueError(f"Invalid numeric token: {n}")
 
-        if is_aho_number(n):
-            label_id = self.aho_id
-        else:
-            label_id = self.safe_id
-
+        digit_ids = [self.digit2id[ch] for ch in raw]
         tokens = digit_ids + [self.sep_id] + [self.mask_id]
 
         if len(tokens) > self.max_len:
-            tokens = tokens[-self.max_len:]  
+            tokens = tokens[-self.max_len :]
 
-        attention_mask = [1] * len(tokens) 
+        attention_mask = [1] * len(tokens)
 
         while len(tokens) < self.max_len:
             tokens.append(self.pad_id)
@@ -77,75 +75,27 @@ class DecoderTokenizer:
 
         input_ids = torch.tensor(tokens, dtype=torch.long)
         attention_mask = torch.tensor(attention_mask, dtype=torch.long)
-        label_id_tensor = torch.tensor(label_id, dtype=torch.long)
+        label_id_tensor = torch.tensor(label_id, dtype=torch.long) if label_id is not None else None
         return input_ids, attention_mask, label_id_tensor
 
-    def batch_encode(
-        self, numbers: List[int]
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def batch_encode(self, numbers: list[str]) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
-        複数の整数をまとめてトークン化し、バッチテンソルを返す。
+        複数の文字列をまとめてトークン化し、バッチテンソルを返す。
 
         Args:
-            numbers (List[int]): 変換する整数のリスト。
+            numbers (List[str]): 変換する文字列のリスト。
 
         Returns:
             Tuple[Tensor, Tensor, Tensor]: 各サンプルの input_ids, attention_mask, label_id を
-            先頭軸でまとめたテンソル。
+            先頭軸でまとめたテンソル。ラベル未指定は -100 とする。
         """
-        encoded = [self.encode(n) for n in numbers] 
-        input_ids = torch.stack([e[0] for e in encoded], dim=0) 
-        attention_mask = torch.stack([e[1] for e in encoded], dim=0) 
-        label_ids = torch.stack([e[2] for e in encoded], dim=0) 
+        encoded = [self.encode(n) for n in numbers]
+        input_ids = torch.stack([e[0] for e in encoded], dim=0)
+        attention_mask = torch.stack([e[1] for e in encoded], dim=0)
+        label_values = [e[2].item() if e[2] is not None else -100 for e in encoded]
+        label_ids = torch.tensor(label_values, dtype=torch.long)
         return input_ids, attention_mask, label_ids
 
-    def encode_without_label(self, n: int) -> Tuple[torch.Tensor, torch.Tensor]:
-        """
-        整数 n を 1 サンプル分のトークン列に変換する。
-
-        Args:
-            n (int): 変換する整数。
-
-        Returns:
-            Tuple[Tensor, Tensor]:
-                input_ids: 数字列 + [SEP] + [MASK] + PAD (shape: (max_len,))
-                attention_mask: 1=有効, 0=PAD (shape: (max_len,))
-        """
-        s = str(abs(int(n))) 
-        digit_ids = [self.digit2id[ch] for ch in s]  
-
-        tokens = digit_ids + [self.sep_id] + [self.mask_id]
-
-        if len(tokens) > self.max_len:
-            tokens = tokens[-self.max_len:]  
-
-        attention_mask = [1] * len(tokens) 
-
-        while len(tokens) < self.max_len:
-            tokens.append(self.pad_id)
-            attention_mask.append(0)
-
-        input_ids = torch.tensor(tokens, dtype=torch.long)
-        attention_mask = torch.tensor(attention_mask, dtype=torch.long)
-        return input_ids, attention_mask
-
-    def batch_encode_without_label(
-        self, numbers: List[int]
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """
-        複数の整数をまとめてトークン化し、バッチテンソルを返す。
-
-        Args:
-            numbers (List[int]): 変換する整数のリスト。
-
-        Returns:
-            Tuple[Tensor, Tensor]: 各サンプルの input_ids, attention_mask を先頭
-            軸でまとめたテンソル。
-        """
-        encoded = [self.encode(n) for n in numbers] 
-        input_ids = torch.stack([e[0] for e in encoded], dim=0) 
-        attention_mask = torch.stack([e[1] for e in encoded], dim=0) 
-        return input_ids, attention_mask
 
 class PositionalEncoding(nn.Module):
     """
@@ -158,20 +108,13 @@ class PositionalEncoding(nn.Module):
     def __init__(self, d_model: int, max_len: int = 512):
         super().__init__()
         pe = torch.zeros(max_len, d_model)
-
         position = torch.arange(0, max_len, dtype=torch.float32).unsqueeze(1)
-
         div_term = torch.exp(
-            torch.arange(0, d_model, 2, dtype=torch.float32)
-            * (-math.log(10000.0) / d_model)
+            torch.arange(0, d_model, 2, dtype=torch.float32) * (-math.log(10000.0) / d_model)
         )
-
         pe[:, 0::2] = torch.sin(position * div_term)
-
         pe[:, 1::2] = torch.cos(position * div_term)
-
-        pe = pe.unsqueeze(0) 
-
+        pe = pe.unsqueeze(0)
         self.register_buffer("pe", pe)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -185,8 +128,8 @@ class PositionalEncoding(nn.Module):
             Tensor: 同形状で位置情報を足したテンソル。
         """
         seq_len = x.size(1)
+        return x + self.pe[:, :seq_len]
 
-        return x + self.pe[:, :seq_len] 
 
 class DecoderBlock(nn.Module):
     """
@@ -207,9 +150,7 @@ class DecoderBlock(nn.Module):
         dropout: float = 0.05,
     ):
         super().__init__()
-        self.self_attn = nn.MultiheadAttention(
-            embed_dim=d_model, num_heads=nhead, batch_first=True
-        )
+        self.self_attn = nn.MultiheadAttention(embed_dim=d_model, num_heads=nhead, batch_first=True)
 
         self.linear1 = nn.Linear(d_model, dim_feedforward)
         self.linear2 = nn.Linear(dim_feedforward, d_model)
@@ -246,14 +187,12 @@ class DecoderBlock(nn.Module):
         )
 
         x = x + self.dropout1(attn_output)
-        x = self.norm1(x)        
-
+        x = self.norm1(x)
         ffn_output = self.linear2(self.dropout(self.activation(self.linear1(x))))
-
         x = x + self.dropout2(ffn_output)
-
         x = self.norm2(x)
         return x
+
 
 def generate_subsequent_mask(sz: int, device: torch.device) -> torch.Tensor:
     """
@@ -266,7 +205,8 @@ def generate_subsequent_mask(sz: int, device: torch.device) -> torch.Tensor:
     mask = torch.triu(torch.ones(sz, sz, dtype=torch.bool, device=device), diagonal=1)
     return mask
 
-class AhoDecoderTransformer(nn.Module):
+
+class MameDecoderTransformer(nn.Module):
     """
     デコーダ単体 Transformer。
     入力: 数字列 + [SEP] + [AHO/SAFE] + PAD
@@ -329,14 +269,10 @@ class AhoDecoderTransformer(nn.Module):
         """
         device = input_ids.device
         B, S = input_ids.size()
-
-        x = self.embedding(input_ids) * math.sqrt(self.d_model)  
-
+        x = self.embedding(input_ids) * math.sqrt(self.d_model)
         x = self.pos_encoding(x)
-
         attn_mask = generate_subsequent_mask(S, device)
-
-        key_padding_mask = attention_mask == 0  
+        key_padding_mask = attention_mask == 0
 
         for layer in self.layers:
             x = layer(
@@ -345,43 +281,44 @@ class AhoDecoderTransformer(nn.Module):
                 key_padding_mask=key_padding_mask,
             )
 
-        logits = self.lm_head(x)  
+        logits = self.lm_head(x)
 
         return logits
 
-def is_aho_number(n: int) -> bool:
+
+class DigitDataset(Dataset):
     """
-    与えられた整数が「3の倍数」または桁に「3」を含む場合に True を返す。
-
-    Args:
-        n (int): 判定したい整数。負数でもよく、内部で絶対値にして桁を調べる。
-
-    Returns:
-        bool: 条件を満たすなら True、それ以外は False。
-
-    str(abs(int(n))) は「整数に直して符号を外し、文字列にして各桁を扱う」処理。
-    """
-    return (n % 3 == 0) or ("3" in str(abs(int(n))))
-
-class AhoDecoderDataset(Dataset):
-    """
-    numbers の各整数を「数字列 + [SEP] + [LABEL]」に変換する Dataset。
+    ファイル行の各文字列を「数字列 + [SEP] + [LABEL]」に変換する Dataset。
 
     入力: トークン ID 列と attention mask
     ラベル: [AHO] または [SAFE] の ID
     """
 
-    def __init__(self, numbers: List[int], tokenizer: DecoderTokenizer):
-        self.numbers = numbers
+    def __init__(self, data_path: str, tokenizer: DecoderTokenizer, require_label: bool = True):
+        self.samples: list[str] = []
         self.tokenizer = tokenizer
+        with open(data_path, encoding="utf-8") as f:
+            for line in f:
+                raw = line.strip()
+                if not raw:
+                    continue
+                has_label = raw[-1] in ("A", "Z")
+                if require_label and not has_label:
+                    continue
+                self.samples.append(raw)
+        if require_label and not self.samples:
+            raise ValueError(f"No labeled samples found in {data_path}")
 
     def __len__(self):
-        return len(self.numbers)
+        return len(self.samples)
 
     def __getitem__(self, idx: int):
-        n = self.numbers[idx]
-        input_ids, attention_mask, label_id = self.tokenizer.encode(n)
-        return input_ids, attention_mask, label_id, n
+        raw = self.samples[idx]
+        input_ids, attention_mask, label_id = self.tokenizer.encode(raw)
+        if label_id is None:
+            raise ValueError(f"Missing label for sample: {raw}")
+        return input_ids, attention_mask, label_id, raw
+
 
 def train_one_epoch(
     model: nn.Module,
@@ -391,38 +328,32 @@ def train_one_epoch(
 ):
     model.train()
 
-    total_loss = 0.0 
-    total_count = 0 
+    total_loss = 0.0
+    total_count = 0
 
     criterion = nn.CrossEntropyLoss()
 
     for input_ids, attention_mask, label_ids, _ in dataloader:
-        input_ids = input_ids.to(device) 
-        attention_mask = attention_mask.to(device) 
-        label_ids = label_ids.to(device) 
+        input_ids = input_ids.to(device)
+        attention_mask = attention_mask.to(device)
+        label_ids = label_ids.to(device)
 
-        optimizer.zero_grad() 
-        logits = model(input_ids, attention_mask)  
-
+        optimizer.zero_grad()
+        logits = model(input_ids, attention_mask)
         label_positions = attention_mask.sum(dim=1) - 1
 
         B, S, V = logits.size()
-
         idx = label_positions.unsqueeze(1).unsqueeze(2).expand(-1, 1, V)
-
-        logits_label = logits.gather(1, idx).squeeze(1)  
-
+        logits_label = logits.gather(1, idx).squeeze(1)
         loss = criterion(logits_label, label_ids)
-
         loss.backward()
-
         optimizer.step()
-
         batch_size = input_ids.size(0)
         total_loss += loss.item() * batch_size
         total_count += batch_size
 
     return total_loss / total_count
+
 
 @torch.no_grad()
 def evaluate(
@@ -435,33 +366,25 @@ def evaluate(
     """
     model.eval()
 
-    total_loss = 0.0 
-    total_count = 0 
-    total_correct = 0 
+    total_loss = 0.0
+    total_count = 0
+    total_correct = 0
 
     criterion = nn.CrossEntropyLoss()
 
     for input_ids, attention_mask, label_ids, _ in dataloader:
-        input_ids = input_ids.to(device) 
-        attention_mask = attention_mask.to(device) 
-        label_ids = label_ids.to(device) 
+        input_ids = input_ids.to(device)
+        attention_mask = attention_mask.to(device)
+        label_ids = label_ids.to(device)
 
-        logits = model(input_ids, attention_mask)  
-
+        logits = model(input_ids, attention_mask)
         label_positions = attention_mask.sum(dim=1) - 1
-
         B, S, V = logits.size()
-
         idx = label_positions.unsqueeze(1).unsqueeze(2).expand(-1, 1, V)
-
-        logits_label = logits.gather(1, idx).squeeze(1)  
-
+        logits_label = logits.gather(1, idx).squeeze(1)
         loss = criterion(logits_label, label_ids)
-
         preds = logits_label.argmax(dim=-1)
-
         correct = (preds == label_ids).sum().item()
-
         batch_size = input_ids.size(0)
         total_loss += loss.item() * batch_size
         total_count += batch_size
@@ -469,75 +392,12 @@ def evaluate(
 
     return total_loss / total_count, total_correct / total_count
 
-@torch.no_grad()
-def aho_infer(
-    model: AhoDecoderTransformer,
-    tokenizer: DecoderTokenizer,
-    numbers: List[int],
-    device: torch.device,
-):
-    """
-    与えられた整数リストを推論し、結果をコンソールに表示する。
-    """
-    model.eval()
-
-    input_ids, attention_mask = tokenizer.batch_encode_without_label(numbers)
-
-    input_ids = input_ids.to(device) 
-    attention_mask = attention_mask.to(device) 
-
-    logits = model(input_ids, attention_mask)
-
-    label_positions = attention_mask.sum(dim=1) - 1
-
-    B, S, V = logits.size()
-    idx = label_positions.unsqueeze(1).unsqueeze(2).expand(-1, 1, V)
-    logits_label = logits.gather(1, idx).squeeze(1)  
-
-    probs = logits_label.softmax(dim=-1)
-    preds = probs.argmax(dim=-1).cpu().tolist()
-
-    total = len(numbers)
-    correct = 0
-    fail = 0
-    for i, n in enumerate(numbers):
-        pred_id = preds[i]
-        p_aho = probs[i, tokenizer.aho_id].item()
-        p_safe = probs[i, tokenizer.safe_id].item()
-        code = "Aho" if is_aho_number(n) else "Safe"
-
-        if pred_id == tokenizer.aho_id:
-            tag = "Aho"
-        elif pred_id == tokenizer.safe_id:
-            tag = "Safe"
-        else:
-            tag = f"Other({pred_id})"
-        if is_aho_number(n) == (pred_id == tokenizer.aho_id):
-            correct += 1
-        else:
-            fail += 1
-        print(
-            f"{n:5d} -> {tag} "
-            f"(p_AHO={p_aho:.3f}, p_SAFE={p_safe:.3f}, Code={code}, {'OK' if code==tag else 'NG'})"
-        )
-    acc = correct / total if total > 0 else 0.0
-    print(f"\n正解率: {acc*100}% ({correct}/{total}, fail:{fail})")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-c", "--checkpoint",
-        type=str,
-        default=None,
-        help="学習済みチェックポイントへのパス（指定時は推論のみ実行）",
-    )
-    parser.add_argument(
-        "-i", "--interactive",
-        action="store_true",
-        help="対話モードで数字を入力して判定（チェックポイント指定時のみ有効）",
-    )
-    parser.add_argument(
-        "-x", "--export",
+        "-x",
+        "--export",
         type=str,
         default=None,
         help="学習済みチェックポイントへのパスを指定するとONNXへエクスポート",
@@ -546,31 +406,39 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if torch.backends.mps.is_available():
-        device = torch.device("mps") 
+        device = torch.device("mps")
     elif torch.cuda.is_available():
-        device = torch.device("cuda") 
+        device = torch.device("cuda")
     else:
-        device = torch.device("cpu") 
+        device = torch.device("cpu")
     print("device:", device)
 
     tokenizer = DecoderTokenizer(max_len=7)
 
-    train_numbers = list(range(1, 40001))
-
-    val_numbers = list(range(40001, 50001))
-
-    train_dataset = AhoDecoderDataset(train_numbers, tokenizer)
-    val_dataset = AhoDecoderDataset(val_numbers, tokenizer)
+    data_path = "train.txt"
+    full_dataset = DigitDataset(data_path, tokenizer)
+    dataset_size = len(full_dataset)
+    if dataset_size < 2:
+        train_dataset = full_dataset
+        val_dataset = full_dataset
+    else:
+        val_size = max(1, int(dataset_size * 0.1))
+        train_size = dataset_size - val_size
+        train_dataset, val_dataset = random_split(
+            full_dataset,
+            [train_size, val_size],
+            generator=torch.Generator().manual_seed(42),
+        )
 
     train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=256, shuffle=False)
 
-    model = AhoDecoderTransformer(
+    model = MameDecoderTransformer(
         vocab_size=tokenizer.vocab_size,
         max_len=tokenizer.max_len,
         d_model=64,
         nhead=4,
-        num_layers=2,       
+        num_layers=2,
         dim_feedforward=256,
         dropout=0.05,
     ).to(device)
@@ -582,18 +450,17 @@ if __name__ == "__main__":
         model.load_state_dict(checkpoint["model_state_dict"])
         model.eval()
         model.to(cpu_device)
-        print(f"Loaded checkpoint from {args.export} "
-              f"(epoch={checkpoint.get('epoch', 'N/A')})")
+        print(f"Loaded checkpoint from {args.export} (epoch={checkpoint.get('epoch', 'N/A')})")
 
         dummy_input_ids = torch.zeros(1, tokenizer.max_len, dtype=torch.long, device=cpu_device)
         dummy_attention_mask = torch.ones(1, tokenizer.max_len, dtype=torch.long, device=cpu_device)
         onnx_path = "aho_decoder_transformer.onnx"
         torch.onnx.export(
-        model,
+            model,
             (dummy_input_ids, dummy_attention_mask),
             onnx_path,
             input_names=["input_ids", "attention_mask"],
-            output_names=["logits"],   
+            output_names=["logits"],
             dynamic_axes={
                 "input_ids": {0: "batch"},
                 "attention_mask": {0: "batch"},
@@ -605,63 +472,6 @@ if __name__ == "__main__":
         )
         print("ONNX エクスポート完了:", onnx_path)
         sys.exit(0)
-
-    if args.checkpoint is not None:
-        checkpoint = torch.load(args.checkpoint, map_location=device)
-        model.load_state_dict(checkpoint["model_state_dict"])
-        print(f"Loaded checkpoint from {args.checkpoint} "
-              f"(epoch={checkpoint.get('epoch', 'N/A')})")
-
-        model.eval()
-        if args.interactive:
-            print("\n=== 対話モード ===")
-            print("数字を入力してください。空行または Ctrl+C / Ctrl+D で終了します。")
-            while True:
-                try:
-                    raw = input("n> ").strip()
-                except (KeyboardInterrupt, EOFError):
-                    print("\n終了します。")
-                    break
-
-                if raw == "":
-                    print("終了します。")
-                    break
-
-                try:
-                    num = int(raw)
-                except ValueError:
-                    print("整数を入力してください。")
-                    continue
-
-                input_ids, attention_mask = tokenizer.batch_encode_without_label([num])
-                input_ids = input_ids.to(device)
-                attention_mask = attention_mask.to(device)
-
-                with torch.no_grad():
-                    logits = model(input_ids, attention_mask)
-                    label_pos = attention_mask.sum(dim=1) - 1  
-                    _, _, vocab = logits.size()
-                    idx = label_pos.unsqueeze(1).unsqueeze(2).expand(-1, 1, vocab)
-                    logits_label = logits.gather(1, idx).squeeze(1)  
-                    probs = logits_label.softmax(dim=-1)
-
-                pred_id = probs.argmax(dim=-1).item()
-                p_aho = probs[0, tokenizer.aho_id].item()
-                p_safe = probs[0, tokenizer.safe_id].item()
-                pred_is_aho = pred_id == tokenizer.aho_id
-                rule = is_aho_number(num)
-                tag = "Aho" if pred_is_aho else "Safe"
-                correct = " / 正解" if pred_is_aho == rule else ""
-
-                print(
-                    f"モデル判定: {num} -> {tag} "
-                    f"(p_AHO={p_aho:.3f}, p_SAFE={p_safe:.3f}) "
-                    f"/ ルール: {rule}{correct}"
-                )
-        else:
-            print("\n=== デコーダ Transformer によるAho判定 ===")
-            test_numbers = list(range(0, 100000))
-            aho_infer(model, tokenizer, test_numbers, device)
 
     else:
         optimizer = torch.optim.AdamW(model.parameters(), lr=2e-4)
@@ -679,7 +489,7 @@ if __name__ == "__main__":
                 f"Epoch {epoch:02d} | "
                 f"train_loss={train_loss:.4f} | "
                 f"val_loss={val_loss:.4f} | "
-                f"val_acc={val_acc*100:.2f}%"
+                f"val_acc={val_acc * 100:.2f}%"
             )
             writer.add_scalar("Loss/train", train_loss, epoch)
             writer.add_scalar("Loss/val", val_loss, epoch)

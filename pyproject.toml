@@ -1,5 +1,5 @@
 [project]
-name = "ahotransformer"
+name = "mameformer"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -11,7 +11,33 @@ dependencies = [
     "onnx>=1.20.0",
     "onnxscript>=0.5.6",
 ]
-optional-dependencies = { dev = ["pytest", "ruff"] }
+
+[dependency-groups]
+dev = [
+    "ruff>=0.14.10",
+]
 
 [tool.uv.pip]
 torch-backend = "auto"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "B",    # flake8-bugbear
+    "UP",   # pyupgrade
+]
+ignore = [
+    "E501",  # 行長は formatter に任せる
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
