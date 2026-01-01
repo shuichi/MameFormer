@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  
+  <!-- Face -->
+  <circle cx="50" cy="52" r="32" fill="#96514B"/>
+  
+  <!-- Left ear -->
+  <polygon points="22,35 30,10 42,32" fill="#96514B"/>
+  
+  <!-- Right ear -->
+  <polygon points="78,35 70,10 58,32" fill="#96514B"/>
+  
+  <!-- Inner left ear -->
+  <polygon points="26,32 32,16 38,30" fill="#E8D5C4"/>
+  
+  <!-- Inner right ear -->
+  <polygon points="74,32 68,16 62,30" fill="#E8D5C4"/>
+  
+  <!-- Face mask (white/cream area) -->
+  <ellipse cx="50" cy="62" rx="20" ry="18" fill="#E8D5C4"/>
+  
+  <!-- Left eye -->
+  <circle cx="38" cy="50" r="4" fill="#2D1B1B"/>
+  
+  <!-- Right eye -->
+  <circle cx="62" cy="50" r="4" fill="#2D1B1B"/>
+  
+  <!-- Nose -->
+  <ellipse cx="50" cy="62" rx="5" ry="4" fill="#2D1B1B"/>
+  
+  <!-- Mouth -->
+  <path d="M50 66 Q44 72 40 70" fill="none" stroke="#2D1B1B" stroke-width="2" stroke-linecap="round"/>
+  <path d="M50 66 Q56 72 60 70" fill="none" stroke="#2D1B1B" stroke-width="2" stroke-linecap="round"/>
+  
+</svg>
