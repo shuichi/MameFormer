@@ -1,4 +1,5 @@
 defaults:
+  - _self_ 
   - model: decoder
   - training: default
   - experiment: base
@@ -6,7 +7,7 @@ defaults:
 seed: 42
 
 data:
-  train_path: data/train.txt
+  train_path: data/3train.txt
   val_path: null
   val_split: 0.1
 

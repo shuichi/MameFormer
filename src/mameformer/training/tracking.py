@@ -5,7 +5,6 @@ from collections.abc import Iterable
 from pathlib import Path
 
 import mlflow
-from torch.utils.tensorboard import SummaryWriter
 
 
 def _flatten_dict(data: dict, prefix: str = "") -> dict:
@@ -19,20 +18,11 @@ def _flatten_dict(data: dict, prefix: str = "") -> dict:
     return items
 
 
-def setup_tracking(output_dir: Path, cfg, accelerator=None) -> tuple[SummaryWriter | None, bool]:
-    writer = None
+def setup_tracking(output_dir: Path, cfg, accelerator=None) -> bool:
     mlflow_active = False
 
     if accelerator is not None and not accelerator.is_main_process:
-        return writer, mlflow_active
-
-    output_dir.mkdir(parents=True, exist_ok=True)
-    (output_dir / "checkpoints").mkdir(parents=True, exist_ok=True)
-    (output_dir / "tensorboard").mkdir(parents=True, exist_ok=True)
-    (output_dir / "logs").mkdir(parents=True, exist_ok=True)
-
-    if cfg.experiment.tensorboard:
-        writer = SummaryWriter(log_dir=str(output_dir / "tensorboard"))
+        return mlflow_active
 
     if cfg.experiment.mlflow.enabled:
         tracking_uri = cfg.experiment.mlflow.tracking_uri or os.getenv("MLFLOW_TRACKING_URI")
@@ -48,7 +38,7 @@ def setup_tracking(output_dir: Path, cfg, accelerator=None) -> tuple[SummaryWrit
         mlflow.start_run(run_name=run_name)
         mlflow_active = True
 
-    return writer, mlflow_active
+    return mlflow_active
 
 
 def log_params(cfg, accelerator=None) -> None:
@@ -61,12 +51,9 @@ def log_params(cfg, accelerator=None) -> None:
     mlflow.log_params(cleaned)
 
 
-def log_metrics(metrics: dict[str, float], step: int, writer: SummaryWriter | None, accelerator=None):
+def log_metrics(metrics: dict[str, float], step: int, accelerator=None):
     if accelerator is not None and not accelerator.is_main_process:
         return
-    for key, value in metrics.items():
-        if writer is not None:
-            writer.add_scalar(key, value, step)
     if mlflow.active_run():
         mlflow.log_metrics(metrics, step=step)
 
@@ -81,10 +68,8 @@ def log_artifacts(paths: Iterable[Path], accelerator=None) -> None:
             mlflow.log_artifact(str(path))
 
 
-def finalize_tracking(writer: SummaryWriter | None, accelerator=None) -> None:
+def finalize_tracking(accelerator=None) -> None:
     if accelerator is not None and not accelerator.is_main_process:
         return
-    if writer is not None:
-        writer.close()
     if mlflow.active_run():
         mlflow.end_run()

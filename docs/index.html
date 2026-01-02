@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MameFormer Decoder</title>
+    <style>
+      /* 基本設定 */
+      :root {
+        --bg-color: #0f172a;
+        --card-bg: rgba(30, 41, 59, 0.7);
+        --primary-color: #3b82f6;
+        --primary-hover: #2563eb;
+        --text-main: #f8fafc;
+        --text-sub: #94a3b8;
+        --accent: #10b981;
+        --error: #ef4444;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: sans-serif;
+        background-color: var(--bg-color);
+        background-image: radial-gradient(circle at 50% 0%, #1e293b 0%, #0f172a 100%);
+        color: var(--text-main);
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+      }
+
+      /* メインコンテナ（カードデザイン） */
+      .container {
+        width: 100%;
+        max-width: 480px;
+        background: var(--card-bg);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 24px;
+        padding: 2rem;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      }
+
+      h1 {
+        font-size: 1.5rem;
+        font-weight: 800;
+        text-align: center;
+        margin-bottom: 2rem;
+        line-height: 1.4;
+        background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      /* 入力エリア */
+      .input-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+      }
+
+      label {
+        font-size: 0.9rem;
+        color: var(--text-sub);
+        font-weight: 600;
+      }
+
+      input[type='number'] {
+        width: 100%;
+        padding: 1rem;
+        font-size: 1.2rem;
+        background: rgba(15, 23, 42, 0.6);
+        border: 2px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        color: var(--text-main);
+        font-family: monospace;
+        transition: all 0.3s ease;
+        outline: none;
+      }
+
+      input[type='number']:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+      }
+
+      select {
+        width: 100%;
+        padding: 0.9rem 1rem;
+        font-size: 1rem;
+        background: rgba(15, 23, 42, 0.6);
+        border: 2px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        color: var(--text-main);
+        font-family: monospace;
+        transition: all 0.3s ease;
+        outline: none;
+      }
+
+      select:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+      }
+
+      /* ボタン */
+      button {
+        width: 100%;
+        padding: 1rem;
+        font-size: 1rem;
+        font-weight: 700;
+        color: white;
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        transition:
+          transform 0.2s,
+          box-shadow 0.2s;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+      }
+
+      button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+      }
+
+      button:active {
+        transform: translateY(0);
+      }
+
+      /* 結果表示エリア（ターミナル風） */
+      pre {
+        margin-top: 2rem;
+        background: #000;
+        padding: 1.5rem;
+        border-radius: 12px;
+        border: 1px solid #333;
+        font-family: monospace;
+        font-size: 0.9rem;
+        line-height: 1.6;
+        color: #4ade80;
+        /* Terminal Green */
+        white-space: pre-wrap;
+        /* スマホで横スクロールしないように折り返す */
+        word-break: break-all;
+        min-height: 120px;
+        position: relative;
+      }
+
+      pre::before {
+        content: 'OUTPUT >';
+        position: absolute;
+        top: 0;
+        left: 0;
+        background: #333;
+        color: #fff;
+        font-size: 0.7rem;
+        padding: 2px 8px;
+        border-bottom-right-radius: 8px;
+        border-top-left-radius: 11px;
+      }
+
+      /* スマホ向け微調整 */
+      @media (max-width: 480px) {
+        .container {
+          padding: 1.5rem;
+        }
+
+        h1 {
+          font-size: 1.25rem;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <h1>MameFormer Decoder<br /><span style="font-size: 0.8em; opacity: 0.8">(ONNX + WebGPU)</span></h1>
+
+      <div class="input-group">
+        <label for="model-select">Model</label>
+        <select id="model-select">
+          <option value="model.onnx" selected>3の倍数と3がつく数字</option>
+          <option value="5model.onnx">5の倍数と5がつく数字</option>
+          <option value="7model.onnx">7の倍数と7がつく数字</option>
+        </select>
+      </div>
+
+      <div class="input-group">
+        <label for="input-n">Enter an integer n</label>
+        <input
+          id="input-n"
+          type="number"
+          inputmode="numeric"
+          value="123"
+          placeholder="e.g., 123"
+          min="1"
+          max="99999"
+          step="1"
+          pattern="[0-9]*"
+          maxlength="5"
+        />
+      </div>
+
+      <button id="run-btn">Judge</button>
+      <pre id="result">Result will be displayed here</pre>
+      <br />
+      <a href="https://github.com/shuichi/MameFormer/">
+        <img
+          width="32"
+          height="32"
+          src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTgiIGhlaWdodD0iOTYiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZmlsbC1ydWxlPSJldmVub2RkIiBjbGlwLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik00OC44NTQgMEMyMS44MzkgMCAwIDIyIDAgNDkuMjE3YzAgMjEuNzU2IDEzLjk5MyA0MC4xNzIgMzMuNDA1IDQ2LjY5IDIuNDI3LjQ5IDMuMzE2LTEuMDU5IDMuMzE2LTIuMzYyIDAtMS4xNDEtLjA4LTUuMDUyLS4wOC05LjEyNy0xMy41OSAyLjkzNC0xNi40Mi01Ljg2Ny0xNi40Mi01Ljg2Ny0yLjE4NC01LjcwNC01LjQyLTcuMTctNS40Mi03LjE3LTQuNDQ4LTMuMDE1LjMyNC0zLjAxNS4zMjQtMy4wMTUgNC45MzQuMzI2IDcuNTIzIDUuMDUyIDcuNTIzIDUuMDUyIDQuMzY3IDcuNDk2IDExLjQwNCA1LjM3OCAxNC4yMzUgNC4wNzQuNDA0LTMuMTc4IDEuNjk5LTUuMzc4IDMuMDc0LTYuNi0xMC44MzktMS4xNDEtMjIuMjQzLTUuMzc4LTIyLjI0My0yNC4yODMgMC01LjM3OCAxLjk0LTkuNzc4IDUuMDE0LTEzLjItLjQ4NS0xLjIyMi0yLjE4NC02LjI3NS40ODYtMTMuMDM4IDAgMCA0LjEyNS0xLjMwNCAxMy40MjYgNS4wNTJhNDYuOTcgNDYuOTcgMCAwIDEgMTIuMjE0LTEuNjNjNC4xMjUgMCA4LjMzLjU3MSAxMi4yMTMgMS42MyA5LjMwMi02LjM1NiAxMy40MjctNS4wNTIgMTMuNDI3LTUuMDUyIDIuNjcgNi43NjMuOTcgMTEuODE2LjQ4NSAxMy4wMzggMy4xNTUgMy40MjIgNS4wMTUgNy44MjIgNS4wMTUgMTMuMiAwIDE4LjkwNS0xMS40MDQgMjMuMDYtMjIuMzI0IDI0LjI4MyAxLjc4IDEuNTQ4IDMuMzE2IDQuNDgxIDMuMzE2IDkuMTI2IDAgNi42LS4wOCAxMS44OTctLjA4IDEzLjUyNiAwIDEuMzA0Ljg5IDIuODUzIDMuMzE2IDIuMzY0IDE5LjQxMi02LjUyIDMzLjQwNS0yNC45MzUgMzMuNDA1LTQ2LjY5MUM5Ny43MDcgMjIgNzUuNzg4IDAgNDguODU0IDB6IiBmaWxsPSIjZmZmIi8+PC9zdmc+"
+          alt="GitHub logo"
+        />
+      </a>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.webgpu.min.js"></script>
+    <script>
+      // 語彙とトークナイザの定義（Python の DecoderTokenizer と同じ設定）
+      const maxLen = 7;
+      const padId = 0;
+      const sepId = 11;
+      const mask = 12;
+      const ahoId = 13;
+      const safeId = 14;
+      const digit2id = {};
+
+      for (let d = 0; d < 10; d++) {
+        digit2id[String(d)] = d + 1;
+      }
+
+      function encodeNumber(n) {
+        const v = Math.abs(parseInt(n, 10));
+        const s = v.toString();
+
+        const digitIds = [];
+        for (const ch of s) {
+          digitIds.push(digit2id[ch]);
+        }
+
+        let tokens = digitIds.concat([sepId, mask]);
+
+        if (tokens.length > maxLen) {
+          tokens = tokens.slice(tokens.length - maxLen);
+        }
+
+        const attentionMask = new Array(tokens.length).fill(1);
+        while (tokens.length < maxLen) {
+          tokens.push(padId);
+          attentionMask.push(0);
+        }
+
+        return { inputIds: tokens, attentionMask: attentionMask };
+      }
+
+      // ここから ONNX Runtime Web 関連の処理
+      let session = null;
+      let currentModelFile = null;
+
+      function getSelectedModelFile() {
+        return document.getElementById('model-select').value;
+      }
+
+      async function initSession(modelFile) {
+        if (session && currentModelFile === modelFile) return session;
+        try {
+          // まず WebGPU での初期化を試みる
+          document.getElementById('result').textContent += '\nTrying WebGPU...';
+          session = await ort.InferenceSession.create(modelFile, {
+            executionProviders: ['webgpu'],
+          });
+          currentModelFile = modelFile;
+          document.getElementById('result').textContent += 'Success!\nONNX session ready (WebGPU).\n';
+        } catch (e) {
+          // WebGPU でエラーが出たらここに来る
+          document.getElementById('result').textContent += 'failed or not supported.\nFalling back to WASM...\n';
+          // WASM (CPU) で再挑戦
+          session = await ort.InferenceSession.create(modelFile, {
+            executionProviders: ['wasm'],
+          });
+          currentModelFile = modelFile;
+          document.getElementById('result').textContent += 'Success!\nONNX session ready (WASM).\n';
+        }
+        return session;
+      }
+
+      function logitsToResult(logitsTensor, attentionMask) {
+        const data = logitsTensor.data; // Float32Array
+        const dims = logitsTensor.dims; // e.g., [1, 7, 15]
+        console.log('logits dims:', dims);
+
+        let B, S, V;
+
+        if (dims.length === 3) {
+          [B, S, V] = dims; // 期待パターン: [1, 7, 15]
+        } else if (dims.length === 2) {
+          // もし [S, V] になっている場合
+          B = 1;
+          [S, V] = dims;
+        } else {
+          throw new Error('予想外の logits 形状: ' + JSON.stringify(dims));
+        }
+
+        // PyTorch と同じく「mask=1 の最後の位置」をラベル位置とする
+        let validLen = 0;
+        for (let i = 0; i < S; i++) {
+          if (attentionMask[i] === 1) validLen++;
+        }
+        const labelPos = validLen - 1;
+
+        // data[0, labelPos, :] を取り出す
+        // メモリレイアウト: index = (b*S + s)*V + v
+        const b = 0;
+        const offset = (b * S + labelPos) * V;
+        const vec = [];
+        for (let j = 0; j < V; j++) {
+          vec.push(data[offset + j]);
+        }
+
+        // softmax
+        const maxLogit = Math.max(...vec);
+        const exps = vec.map((v) => Math.exp(v - maxLogit));
+        const sumExp = exps.reduce((a, b) => a + b, 0);
+        const probs = exps.map((v) => v / sumExp);
+
+        const pAho = probs[ahoId];
+        const pSafe = probs[safeId];
+
+        let predId = 0;
+        let predProb = -1;
+        for (let i = 0; i < probs.length; i++) {
+          if (probs[i] > predProb) {
+            predProb = probs[i];
+            predId = i;
+          }
+        }
+
+        let tag = '';
+        if (predId === ahoId) {
+          tag = 'Aho';
+        } else if (predId === safeId) {
+          tag = 'Safe';
+        } else {
+          tag = `その他(${predId})`;
+        }
+
+        return { tag, pAho, pSafe, predId };
+      }
+
+      async function runInference() {
+        const nStr = document.getElementById('input-n').value;
+        const n = parseInt(nStr, 10);
+
+        if (Number.isNaN(n)) {
+          document.getElementById('result').textContent = '整数を入力してください。';
+          return;
+        }
+
+        // UI: 実行中であることを示す（オプション）
+        const btn = document.getElementById('run-btn');
+        const originalBtnText = btn.textContent;
+        btn.textContent = '推論中...';
+        btn.disabled = true;
+
+        try {
+          const { inputIds, attentionMask } = encodeNumber(n);
+
+          // ONNX Runtime Web 用の Tensor を作成
+          // int64 は BigInt64Array を使う
+          const inputIdsBig = new BigInt64Array(inputIds.length);
+          const attnMaskBig = new BigInt64Array(attentionMask.length);
+          for (let i = 0; i < inputIds.length; i++) {
+            inputIdsBig[i] = BigInt(inputIds[i]);
+            attnMaskBig[i] = BigInt(attentionMask[i]);
+          }
+
+          const inputTensor = new ort.Tensor('int64', inputIdsBig, [1, maxLen]);
+          const attnTensor = new ort.Tensor('int64', attnMaskBig, [1, maxLen]);
+          const modelFile = getSelectedModelFile();
+          const sess = await initSession(modelFile);
+          const feeds = {
+            input_ids: inputTensor,
+            attention_mask: attnTensor,
+          };
+          const outputs = await sess.run(feeds);
+          const logitsTensor = outputs.logits; // Tensor オブジェクト
+          const { tag, pAho, pSafe } = logitsToResult(logitsTensor, attentionMask);
+          const text =
+            `n = ${n}\n` + `Result: ${tag}\n` + `p_AHO = ${pAho.toFixed(3)}\n` + `p_SAFE = ${pSafe.toFixed(3)}`;
+
+          document.getElementById('result').textContent = text;
+        } catch (err) {
+          console.error(err);
+          document.getElementById('result').textContent = 'Error: ' + err;
+        } finally {
+          btn.textContent = originalBtnText;
+          btn.disabled = false;
+        }
+      }
+
+      window.addEventListener('load', () => {
+        initSession(getSelectedModelFile()).catch((err) => {
+          console.error(err);
+          document.getElementById('result').textContent = 'Error: ' + err;
+        });
+      });
+
+      document.getElementById('model-select').addEventListener('change', () => {
+        session = null;
+        currentModelFile = null;
+        document.getElementById('result').textContent = 'Model changed. Reinitializing...';
+        initSession(getSelectedModelFile()).catch((err) => {
+          console.error(err);
+          document.getElementById('result').textContent = 'Error: ' + err;
+        });
+      });
+
+      document.getElementById('run-btn').addEventListener('click', () => {
+        runInference().catch((err) => {
+          console.error(err);
+          document.getElementById('result').textContent = 'Error: ' + err;
+        });
+      });
+
+      document.getElementById('input-n').addEventListener('input', function (e) {
+        // 数字以外を除去
+        this.value = this.value.replace(/[^0-9]/g, '');
+
+        // 99999を超えたら切り詰め
+        if (parseInt(this.value) > 99999) {
+          this.value = '99999';
+        }
+      });
+    </script>
+  </body>
+</html>

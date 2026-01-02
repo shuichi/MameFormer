@@ -16,26 +16,26 @@ uv pip install torch --torch-backend=auto
 Hydra manages all hyperparameters under `configs/`.
 
 ```sh
-uv run python scripts/train.py experiment.name=dev training.num_epochs=10
+set -a; source .env.example; set +a; uv run python scripts/train.py
 ```
 
 Accelerate for multi-GPU / mixed precision:
 
 ```sh
-accelerate launch scripts/train.py training.mixed_precision=fp16
+set -a; source .env.example; set +a; uv run accelerate launch scripts/train.py # training.num_epochs=100
 ```
 
 ## Inference / Evaluation
 
 ```sh
-uv run python scripts/generate.py -c outputs/mameformer/checkpoints/checkpoint_epoch_10.pth --numbers 1,2,3
-uv run python scripts/evaluate.py -c outputs/mameformer/checkpoints/checkpoint_epoch_10.pth --file data/test.txt
+set -a; source .env.example; set +a; uv run python scripts/generate.py -c outputs/$MLFLOW_EXPERIMENT_NAME/checkpoints/checkpoint_epoch_100.pth --numbers 1,2,3,4,5,6,7,8,9,10,11,12,13
+set -a; source .env.example; set +a; uv run python scripts/evaluate.py -c outputs/$MLFLOW_EXPERIMENT_NAME/checkpoints/checkpoint_epoch_100.pth --file data/test.txt
 ```
 
 ONNX export:
 
 ```sh
-uv run python scripts/generate.py -c outputs/mameformer/checkpoints/checkpoint_epoch_10.pth --export-onnx outputs/model.onnx
+set -a; source .env.example; set +a; uv run python scripts/generate.py -c outputs/$MLFLOW_EXPERIMENT_NAME/checkpoints/checkpoint_epoch_100.pth --export-onnx outputs/model.onnx
 ```
 
 ## MLflow + TensorBoard
@@ -43,8 +43,36 @@ uv run python scripts/generate.py -c outputs/mameformer/checkpoints/checkpoint_e
 Set `MLFLOW_TRACKING_URI` (and optionally `MLFLOW_EXPERIMENT_NAME`) or override via Hydra:
 
 ```sh
-uv run python scripts/train.py experiment.mlflow.tracking_uri=http://localhost:5000
+set -a; source .env.example; set +a; uv run python scripts/train.py experiment.mlflow.tracking_uri=http://127.0.0.1:5000
 ```
+
 
 TensorBoard logs are stored in `outputs/{experiment_name}/tensorboard`.
 
+```sh
+set -a; source .env.example; set +a; uv run mlflow ui
+```
+
+## Data Generation
+
+3の倍数と文字としての"3"を含む数字
+
+```sh
+python -c "print('\n'.join(f'{n}A' if n%3==0 or '3' in str(n) else f'{n}Z' for n in range(1,50000)))" > data/3train.txt
+python -c "print('\n'.join(f'{n}A' if n%3==0 or '3' in str(n) else f'{n}Z' for n in range(50000,100000)))" > data/3test.txt
+```
+
+
+5の倍数と文字としての"5"を含む数字
+
+```sh
+python -c "print('\n'.join(f'{n}A' if n%5==0 or '5' in str(n) else f'{n}Z' for n in range(1,50000)))" > data/5train.txt
+python -c "print('\n'.join(f'{n}A' if n%5==0 or '5' in str(n) else f'{n}Z' for n in range(50000,100000)))" > data/5test.txt
+```
+
+7の倍数と文字としての"7"を含む数字。7になると `training.num_epochs=3000 data.train_path=data/7train.txt` などが良さそう。
+
+```sh
+python -c "print('\n'.join(f'{n}A' if n%7==0 or '7' in str(n) else f'{n}Z' for n in range(1,50000)))" > data/7train.txt
+python -c "print('\n'.join(f'{n}A' if n%7==0 or '7' in str(n) else f'{n}Z' for n in range(50000,100000)))" > data/7test.txt
+```

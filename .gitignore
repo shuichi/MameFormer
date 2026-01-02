@@ -1,8 +1,10 @@
+.DS_Store
 uv.lock
 outputs/
 mlruns/
 runs/
 checkpoints/
+mlflow.db
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

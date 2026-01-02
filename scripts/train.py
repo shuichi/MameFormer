@@ -100,7 +100,7 @@ def main(cfg: DictConfig) -> None:
     )
 
     output_dir = Path(to_absolute_path(cfg.experiment.output_dir))
-    writer, _ = setup_tracking(output_dir, cfg, accelerator=accelerator)
+    setup_tracking(output_dir, cfg, accelerator=accelerator)
     log_params(OmegaConf.to_container(cfg, resolve=True), accelerator=accelerator)
 
     if accelerator.is_main_process:
@@ -136,7 +136,6 @@ def main(cfg: DictConfig) -> None:
                 "Accuracy/val": val_acc,
             },
             step=epoch,
-            writer=writer,
             accelerator=accelerator,
         )
 
@@ -151,7 +150,7 @@ def main(cfg: DictConfig) -> None:
             accelerator.save(checkpoint, ckpt_path)
             log_artifacts([ckpt_path], accelerator=accelerator)
 
-    finalize_tracking(writer, accelerator=accelerator)
+    finalize_tracking(accelerator=accelerator)
 
 
 if __name__ == "__main__":
