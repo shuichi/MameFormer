@@ -55,7 +55,7 @@ set -a; source .env.example; set +a; uv run mlflow ui
 
 ## Data Generation
 
-3の倍数と文字としての"3"を含む数字
+Numbers that are multiples of 3 or contain the digit ‘3’.
 
 ```sh
 python -c "print('\n'.join(f'{n}A' if n%3==0 or '3' in str(n) else f'{n}Z' for n in range(1,50000)))" > data/3train.txt
@@ -63,14 +63,14 @@ python -c "print('\n'.join(f'{n}A' if n%3==0 or '3' in str(n) else f'{n}Z' for n
 ```
 
 
-5の倍数と文字としての"5"を含む数字
+Numbers that are multiples of 5 or contain the digit ‘5’.
 
 ```sh
 python -c "print('\n'.join(f'{n}A' if n%5==0 or '5' in str(n) else f'{n}Z' for n in range(1,50000)))" > data/5train.txt
 python -c "print('\n'.join(f'{n}A' if n%5==0 or '5' in str(n) else f'{n}Z' for n in range(50000,100000)))" > data/5test.txt
 ```
 
-7の倍数と文字としての"7"を含む数字。7になると `training.num_epochs=3000 data.train_path=data/7train.txt` などが良さそう。
+Numbers that are multiples of 7 or contain the digit ‘7’. Since there are few five-digit numbers that are multiples of 7, it’s better to increase the epochs, e.g `training.num_epochs=3000 data.train_path=data/7train.txt`.
 
 ```sh
 python -c "print('\n'.join(f'{n}A' if n%7==0 or '7' in str(n) else f'{n}Z' for n in range(1,50000)))" > data/7train.txt
