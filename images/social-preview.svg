@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="1280"
+   height="640"
+   viewBox="0 0 1280 640"
+   role="img"
+   aria-label="MameFormer social preview"
+   version="1.1"
+   id="svg17"
+   sodipodi:docname="social-preview.svg"
+   inkscape:version="1.4.3 (0d15f75, 2025-12-25)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview17"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="1"
+     inkscape:cx="641"
+     inkscape:cy="321"
+     inkscape:window-width="1728"
+     inkscape:window-height="999"
+     inkscape:window-x="0"
+     inkscape:window-y="33"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg17" />
+  <defs
+     id="defs5">
+    <linearGradient
+       id="bg"
+       x1="0"
+       y1="0"
+       x2="1"
+       y2="1">
+      <stop
+         offset="0%"
+         stop-color="#f6f2e9"
+         id="stop1" />
+      <stop
+         offset="55%"
+         stop-color="#f1ede3"
+         id="stop2" />
+      <stop
+         offset="100%"
+         stop-color="#e8eff7"
+         id="stop3" />
+    </linearGradient>
+    <radialGradient
+       id="glow"
+       cx="0.2"
+       cy="0.2"
+       r="0.8">
+      <stop
+         offset="0%"
+         stop-color="#f9c784"
+         stop-opacity="0.35"
+         id="stop4" />
+      <stop
+         offset="100%"
+         stop-color="#f9c784"
+         stop-opacity="0"
+         id="stop5" />
+    </radialGradient>
+    <pattern
+       id="grid"
+       width="48"
+       height="48"
+       patternUnits="userSpaceOnUse">
+      <path
+         d="M48 0H0V48"
+         fill="none"
+         stroke="#ffffff"
+         stroke-opacity="0.06"
+         stroke-width="1"
+         id="path5" />
+    </pattern>
+  </defs>
+  <rect
+     width="1280"
+     height="640"
+     fill="url(#bg)"
+     id="rect5" />
+  <rect
+     width="1280"
+     height="640"
+     fill="url(#grid)"
+     id="rect6" />
+  <rect
+     width="1280"
+     height="640"
+     fill="url(#glow)"
+     id="rect7" />
+  <circle
+     cx="1100"
+     cy="120"
+     r="180"
+     fill="#f59e0b"
+     fill-opacity="0.12"
+     id="circle7" />
+  <circle
+     cx="980"
+     cy="520"
+     r="220"
+     fill="#38bdf8"
+     fill-opacity="0.12"
+     id="circle8" />
+  <g
+     font-family="Space Grotesk, Avenir Next, Segoe UI, sans-serif"
+     fill="#1f2937"
+     id="g9">
+    <text
+       x="96"
+       y="170"
+       font-size="72"
+       font-weight="700"
+       letter-spacing="1"
+       id="text8">MameFormer</text>
+    <text
+       x="96"
+       y="230"
+       font-size="28"
+       fill="#475569"
+       id="text9">Ultra small Transformer Decoder for fast experiments</text>
+  </g>
+  <g
+     font-family="Space Grotesk, Avenir Next, Segoe UI, sans-serif"
+     fill="#64748b"
+     font-size="22"
+     id="g10">
+    <text
+       x="96"
+       y="290"
+       id="text10">Hydra  •  MLflow  •  Accelerate  •  ONNX</text>
+  </g>
+  <g
+     font-family="JetBrains Mono, Menlo, Consolas, monospace"
+     font-size="20"
+     fill="#0ea5a4"
+     id="g12">
+    <text
+       x="96"
+       y="360"
+       id="text11">$ uv run python scripts/train.py</text>
+  </g>
+  <g
+     transform="translate(900 210) scale(2.2)"
+     id="g17">
+    <circle
+       cx="50"
+       cy="52"
+       r="32"
+       fill="#96514B"
+       id="circle12" />
+    <polygon
+       points="22,35 30,10 42,32"
+       fill="#96514B"
+       id="polygon12" />
+    <polygon
+       points="78,35 70,10 58,32"
+       fill="#96514B"
+       id="polygon13" />
+    <polygon
+       points="26,32 32,16 38,30"
+       fill="#E8D5C4"
+       id="polygon14" />
+    <polygon
+       points="74,32 68,16 62,30"
+       fill="#E8D5C4"
+       id="polygon15" />
+    <ellipse
+       cx="50"
+       cy="62"
+       rx="20"
+       ry="18"
+       fill="#E8D5C4"
+       id="ellipse15" />
+    <circle
+       cx="38"
+       cy="50"
+       r="4"
+       fill="#2D1B1B"
+       id="circle15" />
+    <circle
+       cx="62"
+       cy="50"
+       r="4"
+       fill="#2D1B1B"
+       id="circle16" />
+    <ellipse
+       cx="50"
+       cy="62"
+       rx="5"
+       ry="4"
+       fill="#2D1B1B"
+       id="ellipse16" />
+    <path
+       d="M50 66 Q44 72 40 70"
+       fill="none"
+       stroke="#2D1B1B"
+       stroke-width="2"
+       stroke-linecap="round"
+       id="path16" />
+    <path
+       d="M50 66 Q56 72 60 70"
+       fill="none"
+       stroke="#2D1B1B"
+       stroke-width="2"
+       stroke-linecap="round"
+       id="path17" />
+  </g>
+  <rect
+     x="96"
+     y="460"
+     width="520"
+     height="8"
+     rx="4"
+     fill="#16a34a"
+     fill-opacity="0.7"
+     id="rect17" />
+  <text
+     x="96"
+     y="520"
+     font-family="Space Grotesk, Avenir Next, Segoe UI, sans-serif"
+     font-size="20"
+     fill="#334155"
+     id="text17">
+    Tiny, readable, and end-to-end reproducible.
+  </text>
+</svg>

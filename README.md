@@ -1,6 +1,6 @@
 # MameFormer
 
-<img src="icon.svg" width="100px">
+<img src="images/icon.svg" width="100px">
 
 Ultra small and simple Transformer Decoder implementation, now structured as an ML project with
 Hydra/MLflow/Accelerate.
@@ -52,6 +52,9 @@ TensorBoard logs are stored in `outputs/{experiment_name}/tensorboard`.
 ```sh
 set -a; source .env.example; set +a; uv run mlflow ui
 ```
+
+<img src="images/mlflow.png" width="600px">
+
 
 ## Data Generation
 
