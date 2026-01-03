@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 import sys
+import tempfile
 from pathlib import Path
 
 import hydra
 import torch
 from accelerate import Accelerator
+from dotenv import load_dotenv
 from hydra.utils import to_absolute_path
 from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader, random_split
+
+load_dotenv()
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(str(PROJECT_ROOT / "src"))
@@ -19,6 +23,7 @@ from mameformer.models.decoder import MameDecoderTransformer  # noqa: E402
 from mameformer.training.loops import evaluate, train_one_epoch  # noqa: E402
 from mameformer.training.tracking import (  # noqa: E402
     finalize_tracking,
+    is_mlflow_active,
     log_artifacts,
     log_metrics,
     log_params,
@@ -100,7 +105,7 @@ def main(cfg: DictConfig) -> None:
     )
 
     output_dir = Path(to_absolute_path(cfg.experiment.output_dir))
-    setup_tracking(output_dir, cfg, accelerator=accelerator)
+    setup_tracking(cfg, accelerator=accelerator)
     log_params(OmegaConf.to_container(cfg, resolve=True), accelerator=accelerator)
 
     if accelerator.is_main_process:
@@ -146,9 +151,19 @@ def main(cfg: DictConfig) -> None:
                 "optimizer_state_dict": optimizer.state_dict(),
                 "config": OmegaConf.to_container(cfg, resolve=True),
             }
-            ckpt_path = output_dir / "checkpoints" / f"checkpoint_epoch_{epoch}.pth"
-            accelerator.save(checkpoint, ckpt_path)
-            log_artifacts([ckpt_path], accelerator=accelerator)
+            if is_mlflow_active(accelerator=accelerator):
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    ckpt_path = Path(tmpdir) / f"checkpoint_epoch_{epoch}.pth"
+                    accelerator.save(checkpoint, ckpt_path)
+                    log_artifacts(
+                        [ckpt_path],
+                        accelerator=accelerator,
+                        artifact_path="checkpoints",
+                    )
+            else:
+                ckpt_path = output_dir / "checkpoints" / f"checkpoint_epoch_{epoch}.pth"
+                ckpt_path.parent.mkdir(parents=True, exist_ok=True)
+                accelerator.save(checkpoint, ckpt_path)
 
     finalize_tracking(accelerator=accelerator)
 

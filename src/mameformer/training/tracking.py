@@ -18,7 +18,7 @@ def _flatten_dict(data: dict, prefix: str = "") -> dict:
     return items
 
 
-def setup_tracking(output_dir: Path, cfg, accelerator=None) -> bool:
+def setup_tracking(cfg, accelerator=None) -> bool:
     mlflow_active = False
 
     if accelerator is not None and not accelerator.is_main_process:
@@ -58,14 +58,24 @@ def log_metrics(metrics: dict[str, float], step: int, accelerator=None):
         mlflow.log_metrics(metrics, step=step)
 
 
-def log_artifacts(paths: Iterable[Path], accelerator=None) -> None:
+def log_artifacts(
+    paths: Iterable[Path],
+    accelerator=None,
+    artifact_path: str | None = None,
+) -> None:
     if accelerator is not None and not accelerator.is_main_process:
         return
     if not mlflow.active_run():
         return
     for path in paths:
         if path.is_file():
-            mlflow.log_artifact(str(path))
+            mlflow.log_artifact(str(path), artifact_path=artifact_path)
+
+
+def is_mlflow_active(accelerator=None) -> bool:
+    if accelerator is not None and not accelerator.is_main_process:
+        return False
+    return mlflow.active_run() is not None
 
 
 def finalize_tracking(accelerator=None) -> None:
